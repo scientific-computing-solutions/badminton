@@ -134,6 +134,8 @@ int Transitions::getCalendarStartPos(double currentCalendarTime){
             return calendarSwitches[i]; 
         }
     }
+    throw std::runtime_error("Can't happen.");
+    return -1;
 }
 
 
