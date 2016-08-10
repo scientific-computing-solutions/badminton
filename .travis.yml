@@ -6,6 +6,10 @@ os:
   - linux
   - osx
 
+bioc_packages:
+  - graph
+  - Rgraphviz
+
 r_github_packages:
   - jimhester/covr
 
