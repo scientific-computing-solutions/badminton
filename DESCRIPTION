@@ -1,0 +1,25 @@
+Package: badminton
+Title: Simulation of continuous time Markov chains
+Version: 2.0
+Authors@R: c(
+    person("Paul", "Metcalfe", email='paul.metcalfe@gmail.com', role=c("aut", "cre")),
+    person("Nikolas", "Burkoff", role=c("aut"))
+  )
+Description: Common simulation and modelling tools for time-to-event studies.
+Depends:
+    R (>= 3.1.0),
+    graph
+License: GPL (>= 2)
+LazyData: true
+Suggests:
+    knitr,
+    testthat
+LinkingTo: Rcpp
+Imports:
+    Rcpp,
+    stats,
+    data.table,
+    plyr,
+    Rgraphviz
+VignetteBuilder: knitr
+RoxygenNote: 5.0.1

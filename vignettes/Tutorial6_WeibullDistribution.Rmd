@@ -1,0 +1,33 @@
+<!--
+%\VignetteEngine{knitr::knitr}
+%\VignetteIndexEntry{Tutorial 6 -- Piecewise Weibull survival functions}
+-->
+
+Tutorial 6 -- Piecewise Weibull survival functions
+========================================================
+
+Until now, the hazard functions have been piecewise constants, thereby implying piecewise exponential distributions of waiting times. This package also allows for piecewise Weibull distributions of waiting times, specifically, if ```t``` is the time since the subject was recruited then the hazard function is given by ```shape*(rate^shape)*t^(shape-1)``` for parameters ```shape``` and ```rate``` -- see Introduction vignette for further discussions.   
+
+In this package, all edge transitions out of a given state must have the same ```shape``` parameter over all rate switch points. The rate parameters are enter in the same way as described in Tutorial 4.
+
+The shape parameters are set in the ```progressionGraph``` before creating the Event Simulator object:
+
+```{r message=FALSE}
+library("badminton") 
+example <- InitializeProgressionGraph()
+example <- AddNode.ProgressionGraph(example,nodeNames=c("N1","N2","N3","N4"))
+example <- AddEdge.ProgressionGraph(example,from=c("N1","N1"),to=c("N2","N3"))
+#Set Shape parameter for nodes N1 and N3
+example <- SetShape.ProgressionGraph(example,from=c("N1"),to=("N3"),shape=1.4) 
+```
+
+The commands used to set up and run the simulation are then the same as in the piecewise exponential case.
+
+Notes:
+* ```isResetEdge=TRUE``` resets the patient switch times (Tutorial 3) but does not reset the time ```t``` in the Weibull hazard function
+* When parameterizing the rate function and using Weibull hazard functions, do not forget that the value ```rate``` is converted to ```shape*(rate^shape)*t^(shape-1)```. For example, if you require the hazard function ```p*shape*(rate^shape)*t^(shape-1)``` then the rate parameter entered should be ```p^(1/shape)*rate```. The functions ```crossOver_functional``` and ```non_crossOver_functional``` take this into account with their shape argument:
+
+```{r}
+f <- crossOver_functional(parameterName="x",rate=2,shape=1.5)
+as.list(environment(f))
+```

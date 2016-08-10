@@ -1,0 +1,132 @@
+<!--
+%\VignetteEngine{knitr::knitr}
+%\VignetteIndexEntry{Tutorial 1 -- General Overview}
+-->
+
+Tutorial 1 -- General Overview
+========================================================
+
+In this vignette we introduce the basic commands which allow a simple disease progression to be simulated and the output processed. 
+
+Study Specification
+--------------------------------------------------------
+
+In this study, subjects start in the state ```control.progressing``` and then transition into the state ```control.progressed``` before entering the state ```death```. It is also possible for subjects to skip the progressed step and transition ```control.progressing -> death```. 
+
+Constant hazard functions are used throughout, with ```control.os=0.02``` for transitioning to death and ```control.pfs=0.06``` for transitioning to ```control.progressing``` 
+
+The 100 subjects are recruited at different times using the following formula: ```duration * exp(-X / weight)``` with ```duration=4```, ```weight=1``` and ```X``` an exponential random variable with ```rate=1```  
+
+Specifying the progression graph
+--------------------------------------------------------
+
+The following command sets up the transition graph:
+```{r message=FALSE}
+library("badminton") #Load the badminton package
+progressionGraph <- SimpleStudyProgressionGraph(arms=c("control"),armProgression=c("progressing","progressed"),edges="death")
+```
+
+The ```edges="death"``` option enables subjects to transition to ```death``` from any state in the graph. Using the option ```edges="immediate"``` will ensure subjects transition through each progression state before death.
+
+It is possible to plot the transition graph:
+```{r fig.width=6, fig.height=4}
+graph.par(list(nodes=list(fontsize=30))) #Set label font size
+plot(progressionGraph)
+```
+
+See 'Tutorial 2 -- Specifying the transition DAG' for specifying more complicated disease progression graphs. 
+
+
+Setting up the recruitment model
+-------------------------------------------------------
+
+The recruitment model described above can be defined using the ```simpleAccrual``` function
+```{r}
+recModel <- simpleAccrual(duration=4, weight=1)
+```
+
+Setting up the simulator
+-------------------------------------------------------
+
+As the hazard function does not change over time (i.e. there is no switch point at which the hazard function changes due to treatment effect) a simple Switches object is created.
+```{r}
+noSwitches <-  InitializeStudySwitches()
+```
+See 'Tutorial 3 -- Specifying the times at which hazard functions change' for further details 
+
+An event simulator object can then be created:
+```{r}
+simulator <- InitializeEventSim(progressionGraph=progressionGraph,switches=noSwitches,recruitmentModel=recModel)
+```
+
+
+Specifying the hazard functions
+-------------------------------------------------------
+
+In this case it is straightforward to set the hazard functions for the edges of the progression graph:
+```{r}
+control.os <- 0.02
+control.pfs <- 0.06
+simulator <- InsertRate.EventSim(simulator,fromNode="control.progressing",toNode="control.progressed",rate=control.pfs)
+simulator <- InsertRate.EventSim(simulator,fromNode="control.progressing",toNode="death",rate=control.os)
+simulator <- InsertRate.EventSim(simulator,fromNode="control.progressed",toNode="death",rate=control.os)
+```
+See 'Tutorial 4 -- Specifying the hazard functions' for a guide to specifying the hazard functions when hazard functions change at switch points and using functionals to parameterize the hazard functions. Also see 'Tutorial 6 -- Piecewise Weibull survival functions' for specifying the shape and rates of hazard functions for the piecewise Weibull case
+
+
+Running the simulator
+-------------------------------------------------------
+
+The following code runs the simulator, with 100 subjects starting in the state ```control.progressing```. Each subject is simulated until they hit an absorbing state (i.e. ```death''').
+```{r}
+rawOutput <- Simulate.EventSim(simulator,startCounts=c("control.progressing",100))
+```
+Setting ```startCounts=c("control.progressing",100,"control.progressed",50)``` would simulate 150 subjects, 100 starting from the state ```control.progressing``` and 50 from the state ```control.progressed``` 
+
+The output produced is a list with two elements; a vector of the times at which the subjects were recruited onto the trial:
+```{r}
+head(rawOutput$recruitmentTimes)
+```
+and a data frame consisting of the transition times into each state for each subject. The times are given relative to the time at which the subject was recruited onto the trial:
+```{r}
+head(rawOutput$data)
+```
+
+Processing the output
+----------------------------------------------------
+
+The raw output can be transformed into a data frame, with each row representing a subject and each column representing an event of interest (e.g. what was the starting state of the subject? at what time did the subject transition into state X? Did the transition occur before time T? etc.).
+
+An ```EventSet``` object is set up to contain the events of interest and the ```name``` option of an event will be used as the column name of the output data frame:
+
+```{r}
+myEvents <- InitializeEventSet()
+
+#Specify the starting state of the subject
+myEvents <- InsertEvent.EventSet(myEvents,NewEvent(name="initial",type="startState"))
+
+#Specify the recruitment time of the subject
+myEvents <- InsertEvent.EventSet(myEvents,NewEvent(name="rec_time",type="recruitTime"))
+
+#Specify the time of death of the subject
+myEvents <- InsertEvent.EventSet(myEvents,NewEvent(name="death_time",type="timeToHit",nodeNames="death"))
+
+#Specify whether the subject progressed before 15 units of time have passed since they were recruited on the trial
+myEvents <- InsertEvent.EventSet(myEvents,NewEvent(name="prog_15",type="hitsBefore",
+                                                   nodeNames=c("control.progressed","death"),time=15))
+
+#Specify whether the subject died before 25 units of time have passed since the trial started
+myEvents <- InsertEvent.EventSet(myEvents,NewEvent(name="die_25_calendar",type="hitsBefore", 
+                                                   nodeNames="death",time=25,calendarTime=TRUE))
+```
+
+See 'Tutorial 5 -- Specifying Events' for specifying other types of events
+
+In order to generate the final output the following command is used:
+```{r}
+finalOutput <- ProcessEventSimOutput(eventSimOutput=rawOutput,eventSet=myEvents)
+```
+```finalOutput``` is a data frame containing the columns described by the given event set:
+```{r}
+head(finalOutput)
+```

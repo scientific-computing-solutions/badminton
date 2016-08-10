@@ -1,0 +1,77 @@
+<!--
+%\VignetteEngine{knitr::knitr}
+%\VignetteIndexEntry{Tutorial 5 -- Specifying Events}
+-->
+
+Tutorial 5 -- Specifying Events
+========================================================
+
+NOTE: The processing of the raw output has prioritized flexibility over efficiency. Therefore for simple processing, for which
+efficient R is available, it may be advisable to write you own purpose built processing function.
+
+There are many types of events which can be used to process the output from the simulator. The events of interest
+are stored in an ```EventSet``` object and events are added using the ```InsertEvent.EventSet``` function.
+
+```{r message=FALSE}
+library("badminton") 
+myEvents <- InitializeEventSet()
+#Add an event into myEvents
+myEvents <- InsertEvent.EventSet(myEvents,NewEvent(name="column_name",type="startState"))
+```
+
+Events are created with the ```NewEvent``` function. The ```name``` argument is the column heading in the output data frame.
+There are many different event types:
+
+* ```startState```: The state each subject is recruited into is output (see above)
+* ```endState```: The state each subject ends in is output
+
+```{r message=FALSE, results='hide'}
+NewEvent(name="column_name",type="endState")
+```
+
+* ```recruitTime```: The (calendar) time at which the subject was recruited is output
+```{r message=FALSE, results='hide'}
+NewEvent(name="column_name",type="recruitTime")
+```
+
+
+* ```timeToHit```: The first time a subject transitions into a group of states is output
+```{r message=FALSE, results='hide'}
+#Output first time subject transitions into state N1 or N2. If no transition occurs then Inf is output
+NewEvent(name="column_name",type="timeToHit",nodeNames=c("N1","N2"))
+#By default patient time is output, however, setting calendarTime=TRUE will output the calender time the event occurs
+NewEvent(name="column_name",type="timeToHit",nodeNames=c("N1","N2"),calendarTime=TRUE)
+```
+
+* ```hitsBefore```: If a subject transitions into the group of nodes before the given time then ```TRUE``` is output
+otherwise ```FALSE``` is output
+```{r message=FALSE, results='hide'}
+#Output if the subject transitions into state N1 or N2 before time 10
+NewEvent(name="column_name",type="hitsBefore",nodeNames=c("N1","N2"),time=10)
+#By default patient time is used, however, setting calendarTime=TRUE will use calender time 
+NewEvent(name="column_name",type="hitsBefore",nodeNames=c("N1","N2"),time=10,calendarTime=TRUE)
+```
+
+* ``` timeToHit_Edge```: The first time a subject transitions over one of a set of edges of the DAG
+```{r message=FALSE, results='hide'}
+#Output first time subject transitions over either edge N1 -> N2 or A1 -> A2. If neither transition occurs then Inf is output
+NewEvent(name="column_name",type="timeToHit_Edge",edges=c("N1","N2","A1","A2"))
+#By default patient time is output, however, setting calendarTime=TRUE will output the calender time the event occurs
+NewEvent(name="column_name",type="timeToHit_Edge",edges=c("N1","N2","A1","A2"),calendarTime=TRUE)
+```
+
+
+* ```hitsBefore_Edge```: If a subject transitions over one of a set of edges of the DAG before the given time then ```TRUE``` is output otherwise ```FALSE``` is output
+```{r message=FALSE, results='hide'}
+#Output whether subject transitions over either edge N1 -> N2 or A1 -> A2.before time 15.5
+NewEvent(name="column_name",type="hitsBefore_Edge",edges=c("N1","N2","A1","A2"),time=15.5)
+#By default patient time is output, however, setting calendarTime=TRUE will output the calender time the event occurs
+NewEvent(name="column_name",type="hitsBefore_Edge",edges=c("N1","N2","A1","A2"),time=15.5,calendarTime=TRUE)
+```
+
+Given a Progression Graph and EventSet it is possible to check whether the nodes and edges described in the EventSet exist in the progression graph: 
+```{r message=FALSE, results='hide'}
+g <- SimpleStudyProgressionGraph(arms=c("p","a"),armProgression=c("1","2","3"))
+ValidateAgainstProgressionGraph.EventSet(myEvents,progressionGraph=g)
+```
+

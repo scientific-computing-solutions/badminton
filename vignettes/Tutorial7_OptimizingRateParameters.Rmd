@@ -1,0 +1,202 @@
+<!--
+%\VignetteEngine{knitr::knitr}
+%\VignetteIndexEntry{Tutorial 7 Optimizing Rate Parameters}
+-->
+
+Tutorial 7 Optimizing Rate Parameters
+========================================================
+
+This tutorial shows how Badminton can be used to estimate the rate parameters given patient survival data. A little more work is required than in the previous tutorials.
+
+Introduction
+--------------------------------------------------------
+
+Suppose there is a two arm trial with the following DAG:
+
+```{r fig.width=6, fig.height=4,echo=FALSE, message=FALSE}
+library("badminton")
+crossOver <- c("control.progressing","active.progressed")
+g <- SimpleStudyProgressionGraph(arms=c("control","active"),
+                                 armProgression=c("progressing","progressed"),edge="death",crossOver=crossOver)
+graph.par(list(nodes=list(fontsize=30)))
+plot(g)
+```
+
+We are given the following survival data:
+
+* control progression free survival: median 5.8 months and 13% p.f. survival at 12 months
+* control overall survival: median 12.9 months, 36% survival at 18 months
+* active progression free survival: median 8.3 months and 33.5% p.f.survival at 12 months
+* active overall survival: 46% survival at 18 months
+
+There is a treatment lag of 3 months and we wish to use piecewise Weibull hazard functions. The following parameters are therefore required:
+
+Parameter                | Description
+-------------------------|--------------------
+```toDeath_shape```      | The shape parameter for all edges transitioning into ```death```
+```toProgressed_shape``` | The shape parameter for all edges transitioning into a progressed state
+```control.os```         | The rate parameter for ```control.progress[ing/ed] -> death``` 
+```control.pfs```        | The rate parameter for ```control.progressing -> control.death```
+```active.os```          | The rate parameter for ```active.progress[ing/ed] -> death``` after lag
+```active.pfs```         | The rate parameter for ```active.progressing -> active.death```
+
+Note for badminton if Weibull ```shape = k``` and ```rate = lambda``` then the given hazard function is ```k*[(lamda)^k]*[t^(k-1)]``` where ```t``` is time since recruitment.
+
+
+It is important to note that if ```control.progressing -> control.progressed``` and ```control.progressing -> death``` are Weibull distributed with different shape parameters then the time to leave ```control.progressing``` has a Bi-Weibull distribution not a Weibull distribution. In a future version of this package it will be possible to specify general hazard functions and in that case setting the hazard function of ```control.progressing -> control.progressed``` to be the difference of two Weibull hazard functions can ensure the time to leave ```control.progressing``` has a Weibull distribution. 
+
+```control.os```, ```toDeath_shape``` and ```active.os```
+--------------------------------------------------------
+
+The ```calculate.Weibull``` function in the ```nonproportionalHazards``` function can be used to set ```control.os```, ```toDeath_shape``` and ```active.os``` parameters. Do not forget that the rates output should be raised to the power of ```(1/toDeath_shape)``` in order to be used with badminton. 
+
+We find:
+```{r}
+toDeath_shape <- 1.164459
+control.os <- 0.056585
+active.os <- 0.04298573
+
+#Also define treatment lag time
+treatment_lag_time <- 3
+```
+
+```control.pfs``` and ```toProgress_shape```
+-------------------------------------------------------
+
+We optimize these parameters by running simulations using just the control arm and fitting the output data to the survival data shown above. In order to do this we first define a set up progression graph function. The after-lag parameters are not used yet:
+```{r}
+#Set up a single arm DAG, "progressing" -> "progressed" -> "death" with "progressing" -> "death" as well
+#A single patient time switch at treatment_lag_time and Weibull shape parameters 
+#toProgress_shape (progressing->progressed) and toDeath_Shape (progressing/ed -> death)
+#The given rates before and after switch are arguments and if those after lag
+#are missing/NULL, then the after switch rates = before switch rates 
+SetUpSimulator <- function(toProgress_rate, toProgress_shape,  toDeath_rate, toDeath_shape,toProgress_rate_afterlag=NULL, toDeath_rate_afterlag=NULL){
+
+    if(is.null(toProgress_rate_afterlag)){
+      toProgress_rate_afterlag = toProgress_rate 
+    }
+    if(is.null(toDeath_rate_afterlag)){
+      toDeath_rate_afterlag = toDeath_rate 
+    }
+  
+    g <- InitializeProgressionGraph()
+    g <- AddNode.ProgressionGraph(g,c("progressing","progressed","death"))
+    g <- AddEdge.ProgressionGraph(g,c("progressing","progressing","progressed"),rep("death",3))
+    g <- AddEdge.ProgressionGraph(g,c("progressing"),c("progressed"))
+    
+    g <- SetShape.ProgressionGraph(g,c("progressing","progressed"),c("death","death"),shape=toDeath_shape)
+    g <- SetShape.ProgressionGraph(g,c("progressing"),c("progressed"),shape=toProgress_shape)
+    
+    recModel <- simpleAccrual(duration=0,weight=1)
+    switches <- InitializeStudySwitches()
+    switches <- SetSubjectSwitchTimes.Switches(switches,0,treatment_lag_time)
+    
+    sim <- InitializeEventSim(g,switches,recModel)
+    sim <- InsertRate.EventSim(sim,"progressing","progressed",calendarStartTime=0,
+                               patientStartTime=0,rate=toProgress_rate)
+    sim <- InsertRate.EventSim(sim,"progressing","death",calendarStartTime=0,
+                               patientStartTime=0,rate=toDeath_rate)
+    sim <- InsertRate.EventSim(sim,"progressed","death",calendarStartTime=0,
+                               patientStartTime=0,rate=toDeath_rate)
+    sim <- InsertRate.EventSim(sim,"progressing","progressed",calendarStartTime=0,
+                               patientStartTime=treatment_lag_time,rate=toProgress_rate_afterlag)
+    sim <- InsertRate.EventSim(sim,"progressing","death",calendarStartTime=0,
+                               patientStartTime=treatment_lag_time,rate=toDeath_rate_afterlag)
+    sim <- InsertRate.EventSim(sim,"progressed","death",calendarStartTime=0,
+                               patientStartTime=treatment_lag_time,rate=toDeath_rate_afterlag)
+    return(sim)
+}
+```
+
+
+Next we define three more functions which will enable us to perform the optimization:
+```{r}
+library("data.table")
+
+#The function used to optimize the toProgress_Shape and contol.pfs parameters, see below
+ToOptimizeControl <- function(par,requiredQuantiles,expectedOutcomes,numbersamples=50000,reps=10){ 
+#par[1] = log(control.pfs), par[2] = log(toProgress_shape)
+  
+  sim <- SetUpSimulator(exp(par[1]), exp(par[2]), control.os,toDeath_shape )
+  print("Current parameters:")
+  print(exp(par))
+  return (GenerateGoodNessOfFit(sim,requiredQuantiles,expectedOutcomes,numbersamples,reps))
+
+}
+
+#Calculate the L2 norm between expected quantile values and simulated ones
+GenerateGoodNessOfFit <- function(sim,requiredQuantiles,expectedOutcomes,numbersamples,reps){
+  empiricalQuantiles <- GenerateQuantiles(sim,requiredQuantiles,numbersamples,reps)
+  
+  print(empiricalQuantiles)
+   
+  retVal <- sum( (expectedOutcomes  - empiricalQuantiles)^2)
+  print("Error in fit:")
+  print(retVal)
+  return(retVal)
+  
+}
+
+#This function calculates the empirical quantiles for leaving the progressing state
+#The EventSim to be used, the requiredQuantiles (e.g. c(0.5,0.87) if we want the median
+#and the time at which only 13% are still in the progressing state
+#The number of subjects per simulation and the number of independent replications are also arguments
+GenerateQuantiles <- function(sim,requiredQuantiles,numbersamples,reps){
+  
+  x <- (replicate(reps,{
+      
+      ans <- as.data.table(Simulate.EventSim(sim,startCounts=c("progressing",numbersamples))$data)
+      
+      #Pull out the first time a transition occurs ignoring thetime = 0, enter progressing state 
+      #see unique.data.table for more details
+      e <- unique( subset(ans,ans$state != "progressing"),by="id")
+      
+      return(quantile(e$patient_transition_time, probs = requiredQuantiles))})
+  )
+  
+  print(x)
+  return(rowMeans(x))
+}
+
+
+```
+
+We can now run the optimization (the parameters to optimize are ```log(control.pfs)``` and ```log(toProgress_shape)```): 
+```
+optim(c(log(0.1),log(1.60)),ToOptimizeControl, requiredQuantiles=c(0.5,0.87),expectedOutcomes=c(5.8,12))
+```
+
+Running the command produces the desired parameters (as we are optimizing a statistical function the results you get may be different). The ```GenerateGoodNessOfFit``` function prints how well our empirical quantiles match the expected ones.
+
+```{r}
+toProgress_shape <- 1.63742 
+control.pfs <- 0.102368 
+```
+
+
+Setting ```active.pfs```
+--------------------------------------
+
+A similar procedure can be used to optimize ```active.pfs``` (the same shape parameter ```toProgress_shape``` is used for both arms). Both ```GenerateQuantiles``` and ```GenerateGoodNessOfFit``` from above can be used and we require a single new function:
+
+```{r}
+#This function is used to optimize the active.pfs value, see below for details
+ToOptimizeActive <- function(par,requiredQuantiles,expectedOutcomes,numbersamples=50000,reps=10){
+  sim <- SetUpSimulator( control.pfs, toProgress_shape, control.os , toDeath_shape, exp(par), active.os )
+  print("Current parameters:")
+  print(exp(par))
+  return (GenerateGoodNessOfFit(sim,requiredQuantiles,expectedOutcomes,numbersamples,reps))
+}
+```
+
+As we are fitting a single parameter we then use the ```optimize``` function to optimize ```log(active.pfs)```. The ```interval``` has been chosen so that 0.01 < ```active.pfs``` < 0.25:
+```
+optimize(ToOptimizeActive,interval=c(log(0.01),log(0.25)),requiredQuantiles=c(0.5,0.665),
+expectedOutcomes=c(8.3,12))
+```
+
+This gives (as we are optimizing a statistical function the results you get may be different -- especially if ```toProgress_shape``` is different to the value above):
+```{r}
+active.pfs <- 0.05430
+```
+

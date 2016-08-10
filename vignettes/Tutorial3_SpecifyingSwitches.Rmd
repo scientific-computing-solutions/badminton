@@ -1,0 +1,70 @@
+<!--
+%\VignetteEngine{knitr::knitr}
+%\VignetteIndexEntry{Tutorial 3 -- Specifying the times at which hazard functions change}
+-->
+
+
+Tutorial 3 -- Specifying the times at which hazard functions change
+========================================================
+
+Throughout this package, 'calendar time' is defined to be the time since a clinical trial started and 'patient time' is defined to be the time for a subject since they were recruited onto the study. Therefore, if a subject was recruited at time ```r``` then, for this subject at calendar time = ```t```, patient time ```=t+r``` 
+
+
+This package allows hazard functions to change a fixed time after the trial commenced (a calendar time switch) and also for the functions to change for each subject a fixed amount of time after they were recruited onto the trial (a patient time switch)
+
+Calendar time switches could be useful, if, for example, a new drug is released part way through a trial. Patient time switches could be used to allow piecewise exponential (or Weibull -- see Tutorial 6) survival functions, perhaps modelling the lag time for treatment effects to kick in.
+
+In this tutorial we describe how to set up the switch times at which the hazard functions will change. The switch times are stored in a ```Switches``` object. These objects are initialized using the following function.
+```{r message=FALSE}
+library("badminton")
+switches <-  InitializeStudySwitches()
+```
+
+In this case there are no calendar or patient switch points:
+```{r}
+print(switches)
+```
+
+It is possible to initialize the object with a vector of calendar switch times:
+```{r}
+switches <-  InitializeStudySwitches(c(10,30,50))
+print(switches)
+```
+
+Finally, for each calendar switch time it is possible to insert a vector of patient switch times:
+```{r}
+switches <-  InitializeStudySwitches(c(10,30,50))
+#For calendar time 30->50 add a patient switch time at patient time 15
+switches <- SetSubjectSwitchTimes.Switches(switches,30,15)
+#For calendar time 50 -> Inf add patient switch times at patient times 10,20,30
+switches <- SetSubjectSwitchTimes.Switches(switches,50,c(10,20,30))
+#For calendar tie 0 -> 10 add a patient switch time at patient time 3
+switches <- SetSubjectSwitchTimes.Switches(switches,0,3)
+print(switches)
+```
+
+Reset Patient Time Switches
+------------------------------------------------------
+
+Suppose a study has the following transition graph:
+
+```{r fig.width=6, fig.height=4,echo=FALSE}
+crossOver <- c("control.progressing","active.progressed")
+g <- SimpleStudyProgressionGraph(arms=c("control","active"),
+                                 armProgression=c("progressing","progressed"),edge="death",crossOver=crossOver)
+graph.par(list(nodes=list(fontsize=30)))
+plot(g)
+```
+
+and that the treatment has a lag of 3 before it affects the survival function. In this case the following Switches object would be specified:
+```{r}
+switches <-  InitializeStudySwitches()
+switches <- SetSubjectSwitchTimes.Switches(switches,0,3)
+```
+
+For subjects starting in ```active.progressing```, when patient time = 3, the hazard function will change and the treatment effect can kick in. However, for subjects starting in ```control.progressing```, if they cross over into ```active.progressed``` we need the timer for patient switches to be reset so that the treatment effect will kick in 3 units after crossing over rather than three months after recruitment. The package allows this to be specified, setting the ```isResetEdge``` property to ```TRUE``` for all edges for which transitioning over them resets the patient switch timer.
+```
+DAG <- SetIsResetEdge.ProgressionGraph(DAG,from="control.progressing",to="active.progressed",isResetEdge=TRUE)
+```
+
+Note: The ```crossOver``` edges in ```SimpleStudyProgressionGraph``` automatically have their ```isResetEdge``` property set to ```TRUE```

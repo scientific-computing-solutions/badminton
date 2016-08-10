@@ -1,0 +1,76 @@
+<!--
+%\VignetteEngine{knitr::knitr}
+%\VignetteIndexEntry{Tutorial 2 -- Specifiying the transition DAG}
+-->
+
+Tutorial 2 -- Specifiying the transition DAG
+========================================================
+
+The package allows any directed acyclic graph (DAG) to be used as the underlying transition state graph. This tutorial describes the various ways of specifying progressiong graphs to be used with the event simuator
+
+Building the DAG from scratch
+--------------------------------------------------------
+
+It is possible to start with an empty DAG and add nodes and edges to it:
+
+```{r message=FALSE,fig.width=6, fig.height=4}
+library("badminton") #Load the badminton package
+graph.par(list(nodes=list(fontsize=10))) #Set label font size
+
+DAG <- InitializeProgressionGraph() #Empty graph
+DAG <- AddNode.ProgressionGraph(DAG,nodeNames=c("N1","N2","N3","N4"))
+DAG <- AddEdge.ProgressionGraph(DAG,fromNodeNames="N1",toNodeNames="N2") 
+DAG <- AddEdge.ProgressionGraph(DAG,fromNodeNames=c("N2","N3"),toNodeNames=c("N3","N4")) 
+plot(DAG)
+```
+
+Building the DAG by adding treatment arms
+--------------------------------------------------------
+
+Often it is easier to specify the DAG in terms of treatment arms. In order to add arms, the 'death' node must first be
+added manually:
+```{r message=FALSE}
+DAG <- InitializeProgressionGraph() #Empty graph
+DAG <- AddNode.ProgressionGraph(DAG,nodeNames="death") #Add death node 
+```
+
+Arms can then be added:
+```{r message=FALSE,fig.width=6, fig.height=4}
+DAG <- AddArm.ProgressionGraph(DAG,armName="c",
+                                   armProgression=c("s1","s2","s3"),deathNode="death",edges="immediate")
+plot(DAG)
+```
+
+The nodes added are ```armName.armProgression[1]```, ```armName.armProgression[2]```,... The arm ends at the ```deathNode``` node (which must already exist). There are three possible ```edges``` options:
+* ```"immediate"```: Subjects must progress sequentially through all states of the arm (see above)
+* ```"death"```: Subjects must progress sequentially through all states of the arm or progress straight to the deathNode
+```{r message=FALSE,fig.width=6, fig.height=4}
+DAG <- AddArm.ProgressionGraph(DAG,armName="a",
+                                   armProgression=c("s1","s2","s3","s4"),deathNode="death",edges="death")
+plot(DAG)
+```
+
+* ```"all"``` : Subjects can jump forward to any later state in this arm
+```{r message=FALSE,fig.width=6, fig.height=4}
+DAG <- AddArm.ProgressionGraph(DAG,armName="a2",
+                                   armProgression=c("s1","s2","s3"),deathNode="death",edges="all")
+plot(DAG)
+```
+
+It is possible to add further nodes and edges using the function from earlier in this tutorial
+
+Using  ```SimpleStudyProgressionGraph```
+--------------------------------------------------------
+
+Often, all arms have the same progression sequence and there is a set of extra edges denoting treatment crossovers. If this is the case then the ```SimpleStudyProgressionGraph``` function can be used. This function creates a graph containing the node ```death``` and adds a set of arms. The ```arms``` argument contains a vector of arms, the ```armProgression``` argument contains a vector of progressions of these arms, the edge option is the same as the AddArm function above and ```crossOver``` contains a set of additional crossover edges to be added into the graph.
+
+```{r message=FALSE,fig.width=6, fig.height=4}
+
+crossOver <- c("c.s1","a.s2","a.s2","a2.s3")
+DAG <-  SimpleStudyProgressionGraph(arms=c("c","a","a2"),
+                                 armProgression=c("s1","s2","s3"),edge="immediate",crossOver=crossOver)
+plot(DAG)
+```
+
+Note: The ```crossOver``` edges have their ```isResetEdge``` property set to ```TRUE```, see Tutorial 3 for further details
+

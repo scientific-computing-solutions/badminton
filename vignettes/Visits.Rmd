@@ -1,0 +1,114 @@
+<!--
+%\VignetteEngine{knitr::knitr}
+%\VignetteIndexEntry{Visits vignette}
+-->
+
+
+Discrete Subject Visits
+===================================================
+
+It is actually possible to simulate discrete subject visits in the current version of badminton. However, due to complexity of specifying progression graphs, this is not recommended. This vignette briefly describes how a visit schedule could be implemented. This is followed by a full specification for the implementation of discrete visits and a guide as to how they could be implemented.
+
+Simulating Discrete Visits 
+---------------------------------------------------
+
+Suppose there are three states ```progressing```, ```progressed``` and ```death``` with exponentially distributed transition times with rate parameters 0.2 (```progressing -> progressed```) and 4 (```progressed -> death```). However, subjects only know they have entered ```progressed``` at a discrete visit point and subjects make visits four times a month (i.e. at time = 0.25, 0.5, 0.75, 1.0,...)
+
+The DAG we specify has an extra node ```hiddenProgressed``` and at every visit when no progression has occurred, a subject transitions from ```progressing``` into ```progressing``` and the patient switch times reset. Note this means we no longer have a DAG and a warning message is displayed.
+
+```{r}
+library("badminton")
+graph.par(list(nodes=list(fontsize=30)))
+g <- InitializeProgressionGraph()
+g <- AddNode.ProgressionGraph(g,c("progressing","hiddenProgressed","progressed","death"))
+g <- AddEdge.ProgressionGraph(g,c("progressing","progressing","hiddenProgressed","progressed","hiddenProgressed"),
+                                 c("progressing","hiddenProgressed","progressed","death","death"))
+g <- SetIsResetEdge.ProgressionGraph(g,"progressing","progressing",isResetEdge=TRUE)
+plot(g)
+```
+
+We define a patient switch point at 0.25 and set up the simulator:
+```{r}
+switches <-  InitializeStudySwitches()
+switches <-  SetSubjectSwitchTimes.Switches(switches,0,0.25)
+
+rModel <- simpleAccrual(duration=0, weight=1.0) 
+mySim <- InitializeEventSim(progressionGraph=g,switches=switches,rModel)
+
+```
+
+For the ```progressing``` node we have the following transition rates:
+```{r}
+#Before a visit you never transition back into progressing
+mySim <- InsertRate.EventSim(mySim,"progressing","progressing",calendarStartTime=0,patientStartTime=0,rate=0)
+#If you have not progressed by the visit time then you transition into progressing and
+#the patient switch times are reset As isResetEdge = TRUE
+mySim <- InsertRate.EventSim(mySim,"progressing","progressing",calendarStartTime=0,patientStartTime=0.25,rate=Inf)
+
+mySim <- InsertRate.EventSim(mySim,"progressing","hiddenProgressed",rate=0.2)
+
+```
+
+For the progressed node we have the following transition rates:
+```{r}
+#Before a visit cannot know you are progressed
+mySim <- InsertRate.EventSim(mySim,"hiddenProgressed","progressed",calendarStartTime=0,patientStartTime=0,rate=0)
+
+#At visit you will certainly find out you've progressed
+mySim <- InsertRate.EventSim(mySim,"hiddenProgressed","progressed",calendarStartTime=0,patientStartTime=0.25,rate=Inf)
+
+#You could die before knowing you have progressed (note rate = 4)
+mySim <- InsertRate.EventSim(mySim,"hiddenProgressed","death",rate=4)
+
+#Once progressed you then die...
+mySim <- InsertRate.EventSim(mySim,"progressed","death",rate=4)
+
+```
+
+It is then possible to run the simulation as before. As the progression graph is no longer a DAG, you must specify a ```duration``` argument to the ```Simulate.EventSim``` function. Each subject will be simulated until either they hit an absorbing state or patient time = ```duration```. 
+```{r}
+RawOutput <- Simulate.EventSim(mySim,c("progressing",10),duration=50)
+head(RawOutput$data,25)
+```
+
+Note that self transitions (i.e. ```progressing -> progressing```) are not output and that all ```progressed``` times are multiples of 0.25. The raw output can be processed as before.  
+
+Future implementations of visits
+====================================================
+
+Specification for discrete visit implementation
+----------------------------------------------------
+*  Allow specification of visits in the form every ```x_1``` visits for ```y_1``` visits then every ```x_2``` visits for ```y_2``` visits ... until finally every ```x_n``` visits until hit absorbing state (or duration time)
+*  Each node has its own transition schedule and when transitioning into the node (at a visit) the new schedule is started for the beginning. 
+*  The noise on the visits will be uniform [-c,c] where c is constant for the entire visit schedule and small enough so that consecutive visits cannot interfere with each other.
+*	A set of nodes are defined as visit nodes and for these nodes you transition into them at a continuous time but only know you have transitioned at the next visit (you will always know at the next visit)
+*	A set of edges leaving visit nodes will be deemed probability edges and subjects can only transition over these edges at the visit for which the unknown state becomes known. The transition occurs with a user specified probabilities. The probabilities are subject to the same switching as the transition rates but must be constant away from a switch point.   
+*	Apart from the probability edges the transitions out of a state are the same whether the state you are in is known or not
+*	Only the time of the visit when transitioning into a node becomes known is output ready for processing, not the time when the actual transition occurs
+*	When transitioning control.progressing -> unknown_control.progressed ->[next visit: control.progressed -> active.progressed] both control.progressed and active.progressed should be output ready for processing at the time of the visit. 
+
+Possible additional changes
+---------------------------------------------------
+
+*	Add a simpleaccrualRounded recruitment model and monthsToDays + DaysToMonths function so that you can work in days rather than months. This function will take into account the Weibull shape parameter 
+*   The factor should be 365.25/12. 
+*	Specification and output of times for certain events happening should be able to be specified in days or months.
+* Implement the event processing in C++ for efficiency.
+
+Possible implementation outline sketch
+---------------------------------------------------
+
+Within the R code:
+
+* Add extra logical property for nodes ```isVisitNode``` 
+* Add extra logical property for edges ```isProbabilityEdge```
+* The rate property for edges ```isProbabilityEdge``` will be the transition probability and should be between 0 and 1.
+* When passing the rates into the C++ code, the probability edges should be passed in a separate argument and the _rates_ for the probability edges should be set to zero
+* A new class ```VisitSchedule``` to contain the visit schedules and a new ```visitSchedule``` property of nodes of the progressionGraph.
+
+Within the C++ code:
+* Extra Boolean flag ```known``` for whether the current state is known
+* The rates will behave exactly as before (as ```isProbabilityEdge``` edges will have 0 rates)
+* A new visits class which will contain the visit schedule for each node. Another time variable (in SubjectTime class) will be added, which will denote the time relative to the current visit schedule -- this will be __reset__ when an ```isProbabilityEdge``` __or__ ```isResetEdge``` is traversed?
+* The ```GetNextSwitch``` function adapted so cannot sample beyond next visit time -- when reach a visit time, if ```known``` is ```FALSE``` it is set to ```TRUE``` and the probability edge data is used to determine if there is a crossover transition at this visit. Irrespective of the value of the ```known``` variable, the next visit time is then determined using the node visit schedule (and noise function associated with it) and the current patient visit time. Note the visit times must be calculated in the C++ code as it is not known _a priori_ when subjects will end in an absorbing state.  
+

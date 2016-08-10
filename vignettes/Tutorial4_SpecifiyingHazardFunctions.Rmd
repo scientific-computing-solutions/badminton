@@ -1,0 +1,201 @@
+<!--
+%\VignetteEngine{knitr::knitr}
+%\VignetteIndexEntry{Tutorial 4 -- Specifying the hazard functions}
+-->
+
+
+Tutorial 4 -- Specifying the hazard functions
+========================================================
+
+In this tutorial we show how to specify the transitions rates for the simulator. In this tutorial we assume all transition times are exponential (or piecewise exponential), see Tutorial 6 for Weibull distributed waiting times. 
+
+Study Specification
+--------------------------------------------------------
+
+In this study there are initially two arms "control" and "active" and the subjects start in 'progressing' state, transition into 'progressed' state and finally 'death'. It is possible for subjects to skip the 'progressed' state.
+
+There is a recruitment period of three months. There is a three month lag before the treatment effect kicks in. Upon progressing, the subjects in the control arm cross over into the active arm with probability ```p```. We would like to simulate results for different values of ```p```.  
+
+12 months into the trial a new treatment "superactive" is available and subjects in the control arm can progress into "superactive" with probability ```q(1-p)```. There is also a three month lag until this treatment effect kicks in. 
+
+Set up the simulator
+--------------------------------------------------------
+
+Using Tutorials 2 and 3 we set up the simulator:
+```{r message=FALSE, fig.width=6, fig.height=4}
+library("badminton") #Load the badminton package
+
+#Set up the ProgressionGraph
+DAG <- SimpleStudyProgressionGraph(arms=c("control","active"),armProgression=c("progressing","progressed"),
+                                   edges="death",crossOver=c("control.progressing","active.progressed"))
+
+#Add the superactive node and edges
+DAG <- AddNode.ProgressionGraph(DAG,"superactive.progressed")
+DAG <- AddEdge.ProgressionGraph(DAG,fromNodeNames=c("control.progressing","superactive.progressed"),
+                                    toNodeNames=c("superactive.progressed","death"))
+
+#patient switches time resets when crossing over into superactive arm
+DAG <- SetIsResetEdge.ProgressionGraph(DAG,from="control.progressing",to="superactive.progressed",isResetEdge=TRUE)
+
+#plot DAG
+graph.par(list(nodes=list(fontsize=30))) #Set label font size
+plot(DAG)
+```
+
+
+```{r}
+#recruitment model
+recModel <- simpleAccrual(duration=3,weight=1.0)
+
+#There is a rate switch at calendar time =12
+switches <- InitializeStudySwitches(12)
+
+#There is a rate switch at patient time = 3 at all calendar times
+switches <- SetSubjectSwitchTimes.Switches(switches,calendarTime=0,times=3)
+switches <- SetSubjectSwitchTimes.Switches(switches,calendarTime=12,times=3)
+
+#Set up simulator
+sim <- InitializeEventSim(progressionGraph=DAG,switches=switches,recruitmentModel=recModel)
+
+```
+
+Specifying the hazard functions
+-----------------------------------------------
+
+The rates for transitioning ```control.progressing -> death``` and ```control.progressed -> death``` remain constant for all patient and calendar times and so a simple ```InsertRate.EventSim``` function can be used:
+```{r}
+control.os <- 0.05 #rate for control.* -> death
+control.pfs <- 0.08 - control.os # rate for control.progressing -> control.progressed if no crossover
+
+#Insert rate for all times:
+sim <- InsertRate.EventSim(sim,fromNode="control.progressing",toNode="death",rate=control.os)
+sim <- InsertRate.EventSim(sim,fromNode="control.progressed",toNode="death",rate=control.os)
+```
+
+The rates for transitioning ```active.progressing -> death```, ```active.progressing -> active.progressed``` and ```active.progressed -> death``` are the same as the control arm if patient time ```< 3``` but different otherwise:
+```{r}
+active.os <- 0.04 #rate for active.* -> death after lag
+active.pfs <- 0.07 - active.os # rate for active.progressing -> active.progressed after lag
+
+#Insert rate for patient time < 3, for all calendar times
+sim <- InsertRate.EventSim(sim,fromNode="active.progressing",toNode="death",calendarStartTime=0,
+                           patientStartTime=0,rate=control.os)
+sim <- InsertRate.EventSim(sim,fromNode="active.progressed",toNode="death",calendarStartTime=0,
+                           patientStartTime=0,rate=control.os)
+sim <- InsertRate.EventSim(sim,fromNode="active.progressing",toNode="active.progressed",calendarStartTime=0,
+                           patientStartTime=0,rate=control.pfs)
+sim <- InsertRate.EventSim(sim,fromNode="active.progressing",toNode="death",calendarStartTime=12,
+                           patientStartTime=0,rate=control.os)
+sim <- InsertRate.EventSim(sim,fromNode="active.progressed",toNode="death",calendarStartTime=12,
+                           patientStartTime=0,rate=control.os)
+sim <- InsertRate.EventSim(sim,fromNode="active.progressing",toNode="active.progressed",calendarStartTime=12,
+                           patientStartTime=0,rate=control.pfs)
+
+#Then insert rate for patient time > 3 for all calendar times
+sim <- InsertRate.EventSim(sim,fromNode="active.progressing",toNode="death",calendarStartTime=0,
+                           patientStartTime=3,rate=active.os)
+sim <- InsertRate.EventSim(sim,fromNode="active.progressed",toNode="death",calendarStartTime=0,
+                           patientStartTime=3,rate=active.os)
+sim <- InsertRate.EventSim(sim,fromNode="active.progressing",toNode="active.progressed",calendarStartTime=0,
+                           patientStartTime=3,rate=active.pfs)
+sim <- InsertRate.EventSim(sim,fromNode="active.progressing",toNode="death",calendarStartTime=12,
+                           patientStartTime=3,rate=active.os)
+sim <- InsertRate.EventSim(sim,fromNode="active.progressed",toNode="death",calendarStartTime=12,
+                           patientStartTime=3,rate=active.os)
+sim <- InsertRate.EventSim(sim,fromNode="active.progressing",toNode="active.progressed",calendarStartTime=12,
+                           patientStartTime=3,rate=active.pfs)
+
+```
+
+Similarly for the transition ```superactive.progressed -> death```:
+```{r}
+superactive.os <- 0.035 
+
+#No need to insert rates for calendar time < 12 as no subjects can enter superactive.progressed until
+# calendar time = 12 - so the default value of zero is sufficient 
+sim <- InsertRate.EventSim(sim,fromNode="superactive.progressed",toNode="death",calendarStartTime=12,
+                           patientStartTime=0,rate=control.os)
+sim <- InsertRate.EventSim(sim,fromNode="superactive.progressed",toNode="death",calendarStartTime=12,
+                           patientStartTime=3,rate=superactive.os)
+```
+
+Parameterizing rates
+-------------------------------------------
+
+The final three sets of transitions to specify are ```control.progressing -> control/active/superactive.progressed```. The rates are shown in the table below:
+
+Transition Into | Rate with calendar time < 12 | Rate with calendar time > 12
+----------------|------------------------------|-----------------------------
+control         |   ```(1-p)*control.pfs```    |  ```(1-q)*(1-p)*control.pfs```
+active          |   ```p*control.pfs```        |  ```p*control.pfs```
+superactive     |   ```0```                    |  ```q*(1-p)*control.pfs```
+
+
+There are two parameters associated with these rates ```p``` and ```q``` which can be entered into the simulator:
+```{r}
+sim <- InsertParameter.EventSim(sim,c("p","q"))
+```
+
+Special functionals allow a rate to be split over two transitions edges, as is the case with calendar time < 12:
+```{r}
+sim <- InsertRate.EventSim(sim,fromNode="control.progressing",toNode="active.progressed",calendarStartTime=0,
+                           patientStartTime=0,rate=crossOver_functional("p",control.pfs))
+sim <- InsertRate.EventSim(sim,fromNode="control.progressing",toNode="control.progressed",calendarStartTime=0,
+                           patientStartTime=0,rate=non_crossOver_functional("p",control.pfs))
+sim <- InsertRate.EventSim(sim,fromNode="control.progressing",toNode="active.progressed",calendarStartTime=0,
+                           patientStartTime=3,rate=crossOver_functional("p",control.pfs))
+sim <- InsertRate.EventSim(sim,fromNode="control.progressing",toNode="control.progressed",calendarStartTime=0,
+                           patientStartTime=3,rate=non_crossOver_functional("p",control.pfs))
+```
+
+For calendar time > 12 we have to explicitly define the functions we wish to use as the rates:
+```{r}
+control_function <- function(myparams){
+  return( (1-myparams[["q"]])*(1-myparams[["p"]])*control.pfs)
+}
+
+active_function <- function(myparams){
+  return( myparams[["p"]]*control.pfs)
+}
+
+super_active_function <- function(myparams){
+  return( myparams[["q"]]*(1-myparams[["p"]])*control.pfs)
+}
+
+```
+
+These functions can then be entered as the rates:
+```{r}
+sim <- InsertRate.EventSim(sim,fromNode="control.progressing",toNode="active.progressed",calendarStartTime=12,
+                           patientStartTime=0,rate=active_function)
+sim <- InsertRate.EventSim(sim,fromNode="control.progressing",toNode="control.progressed",calendarStartTime=12,
+                           patientStartTime=0,rate=control_function)
+sim <- InsertRate.EventSim(sim,fromNode="control.progressing",toNode="superactive.progressed",calendarStartTime=12,
+                           patientStartTime=0,rate=super_active_function)
+sim <- InsertRate.EventSim(sim,fromNode="control.progressing",toNode="active.progressed",calendarStartTime=12,
+                           patientStartTime=3,rate=active_function)
+sim <- InsertRate.EventSim(sim,fromNode="control.progressing",toNode="control.progressed",calendarStartTime=12,
+                           patientStartTime=3,rate=control_function)
+sim <- InsertRate.EventSim(sim,fromNode="control.progressing",toNode="superactive.progressed",calendarStartTime=12,
+                           patientStartTime=3,rate=super_active_function)
+```
+
+Evaluating parameterized rates:
+
+Suppose we wish to set ```p=0.25``` and ```q=0.5```. It is straightforward to set up a simulator with the appropriate rates:
+```{r}
+params <-  GetParameters.EventSim(sim,c(0.25,0.5))
+print(params)
+sim_with_p_and_q_evaluated <- EvaluateFormula.EventSim(sim,params)
+```
+
+```sim_with_p_and_q_evaluated``` can now be used with the ```Simulate.EventSim``` function to perform the desired simulations.
+
+Infinite Hazard Rates
+----------------------------------------
+
+It is possible to set the transition rate to infinity using ```rate=Inf```. This could be useful if at a particular patient time it is required that all subjects in state A immediately transition into state B. Note, only one transition out of a node at a particular time can have an infinite rate.
+
+If the Weibull distribution is used and an infinite rate is used when patient time = 0 then the simulator will transition at time = 0. The hazard function (```shape * 0^(shape-1) * Inf^shape```) is not defined.
+
+

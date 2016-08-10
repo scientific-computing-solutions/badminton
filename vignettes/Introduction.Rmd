@@ -1,0 +1,58 @@
+<!--
+%\VignetteEngine{knitr::knitr}
+%\VignetteIndexEntry{Introduction}
+-->
+
+Introduction 
+========================================================
+
+The Badminton package is a general time to event simulator which allows users to model continuous-time, discrete-state stochastic processes. The package can process the output from a simulation and generate a data frame containing user-specified information such as first time entering a chosen state.
+
+The package allows users freedom in specifying the underlying transition state model. 
+As a simple example consider the 4 state transition model:
+
+```{r message=FALSE,fig.width=6, fig.height=4,echo=FALSE}
+library("badminton") #Load the badminton package
+graph.par(list(nodes=list(fontsize=10))) 
+
+DAG <- InitializeProgressionGraph() #Empty graph
+DAG <- AddNode.ProgressionGraph(DAG,nodeNames=c("A","B","C","D"))
+DAG <- AddEdge.ProgressionGraph(DAG,fromNodeNames="A",toNodeNames="B") 
+DAG <- AddEdge.ProgressionGraph(DAG,fromNodeNames=c("A","B","C"),toNodeNames=c("C","D","D")) 
+plot(DAG)
+```
+
+If a simulation starts in state A, then after a period of time it will leave state A and transition into either state B or C. At a later time, a transition will occur into state D. The user specifies the number of simulations to be run and the starting states for these simulations.
+
+The package produces two outputs. The raw output is a list of transition times (e.g. at time 3.456, simulation 4 transitioned into state B) and the processed output is a data frame, one row per simulation and the columns are user specified events such as "time to leave state A", "time arrived into state D".
+
+### Transition Rates
+
+The rates of transition along the edges of the graph can be exponential or Weibull distributed random variables. Using the transition model above we could define the time to transition from ```A``` to ```B``` to be X, an exponential random variable with rate parameter ```lambda```. We could also define the time to transition from ```A``` to ```C``` to be Y, a Weibull random variable with shape parameter ```k``` and rate parameter ```mu``` (implying a hazard function ```k*(mu*t)^(k-1)``` where ```t``` is patient time, described below). The time to transition out of ```A``` would then be min(X,Y).
+
+Oncology Disease Progression
+--------------------------------------------------------
+
+Badminton has been developed with oncology disease progression in mind. A typical two arm clinical trial state model could use the following transition state model:
+
+```{r message=FALSE,fig.width=6, fig.height=4,echo=FALSE}
+library("badminton") #Load the badminton package
+graph.par(list(nodes=list(fontsize=30))) 
+crossOver <- c("control.progressing","active.progressed")
+DAG <-  SimpleStudyProgressionGraph(arms=c("control","active"),armProgression=c("progressing","progressed"),edges="death",crossOvers=crossOver)
+plot(DAG)
+```
+
+A clinical trial starts at time = 0 and different subjects are recruited onto the trial at different times. The package allows the user to specify a recruitment model and the times of recruitment for each subject are generated. 
+
+Throughout this documentation "calendar time" defines the amount of time which has passed since the start of the trial, whereas "patient time"" is defined for each subject as the time since they were recruited onto the trial.
+
+As there can be a lag between commencing treatment and a noticeable treatment effect, it is possible to specify different transition rates for different patient times when using badminton. For example, if a treatment takes 3 months before producing an effect, the rate for ```active.progressing->death``` could be specified as 0.05 if patient time < 3 and then 0.03 for patient time > 3.
+
+Furthermore, at a certain calendar time a new drug could become available on the trial and therefore badminton allows rates to be changed at specified calendar times. For example if calendar time < 10 then the rate for a transition ```control.progressing -> newdrug.progressed``` could be 0, and for calendar time > 10 the rate could be set to, say, 0.5.
+
+Tutorials and further help
+---------------------------------------------------------
+
+There are 7 tutorial vignettes which should provide a comprehensive introduction to the package. For further details, contact Paul.Metcalfe@Astrazeneca.com
+
