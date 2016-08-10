@@ -1,15 +1,22 @@
 Package: badminton
-Title: Simulation of continuous time Markov chains
+Title: Simulation of continuous-time discrete-space Markov chains
 Version: 2.0
 Authors@R: c(
     person("Paul", "Metcalfe", email='paul.metcalfe@gmail.com', role=c("aut", "cre")),
     person("Nikolas", "Burkoff", role=c("aut"))
   )
-Description: Common simulation and modelling tools for time-to-event studies.
+Description:
+   Simulation of continuous-time discrete-state Markov chains, with an
+   emphasis on simulation of clinical trials with time-to-event endpoints.
+   The package simulates datasets and can summarize simulation results,
+   reporting useful statistics such as hitting times.  This allows simulated
+   time-to-event datasets to be produced, which can be useful in clinical
+   trial design.
 Depends:
     R (>= 3.1.0),
     graph
 License: GPL (>= 2)
+URL: https://github.com/scientific-computing-solutions/badminton
 LazyData: true
 Suggests:
     knitr,
