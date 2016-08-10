@@ -6,8 +6,13 @@
 \usage{
 IsEmpty.ProgressionGraph(object)
 }
+\arguments{
+\item{object}{A \code{ProgressionGraph} object}
+}
+\value{
+True iff \code{ProgressionGraph} has no nodes
+}
 \description{
-@param object A \code{ProgressionGraph} object
- @return True iff \code{ProgressionGraph} has no nodes
+True iff \code{ProgressionGraph} has no nodes
 }
 

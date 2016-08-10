@@ -429,8 +429,8 @@ InsertRate.ProgressionGraph <- function(object,fromNode,toNode,rate,mustBeNumeri
 
 ##' True iff \code{ProgressionGraph} has no nodes
 ##' 
-##'  @param object A \code{ProgressionGraph} object
-##'  @return True iff \code{ProgressionGraph} has no nodes 
+##' @param object A \code{ProgressionGraph} object
+##' @return True iff \code{ProgressionGraph} has no nodes 
 IsEmpty.ProgressionGraph <- function(object){
   if(length(nodes(object$graph))==0){
     return(TRUE)
