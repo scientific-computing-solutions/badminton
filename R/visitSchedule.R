@@ -1,3 +1,9 @@
+##' Create a new visit schedule
+##'
+##' @param frequencies Frequency of visits
+##' @param numberVisits How many visits to create
+##' @param noise currently ignored
+##' @return a \code{VisitSchedule} object
 ##' @export
 NewVisitSchedule <- function(frequencies=Inf, numberVisits=Inf, noise=NULL){
     if(any(is.infinite(head(numberVisits,-1))) || !is.infinite(tail(numberVisits,1))) {
