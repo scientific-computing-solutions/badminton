@@ -4,7 +4,8 @@
 ##' @docType package
 ##' @useDynLib badminton
 ##' @importFrom Rcpp evalCpp 
-##' @importFrom stats simulate
+##' @importFrom stats simulate rexp runif
+##' @importFrom utils head tail
 ##' @importFrom data.table rbindlist
 ##' @importFrom plyr mapvalues
 ##' @importFrom Rgraphviz layoutGraph
