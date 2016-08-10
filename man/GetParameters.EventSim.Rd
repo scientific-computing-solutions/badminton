@@ -7,7 +7,8 @@
 GetParameters.EventSim(object, values)
 }
 \arguments{
-\item{object}{Object of type \code{EventSim} from which the parameter names will be taken}
+\item{object}{Object of type \code{EventSim} from which the
+parameter names will be taken}
 
 \item{values}{The vector to be named}
 }
@@ -15,8 +16,9 @@ GetParameters.EventSim(object, values)
 A vector containing values with names from \code{object$params}
 }
 \description{
-Given a vector of values return the vector with names matching those
-found in \code{object$params}. An exception is thrown if the length of the vector of values
-and vector of names are not identical
+Given a vector of values return the vector with names matching
+those found in \code{object$params}. An exception is thrown if the
+length of the vector of values and vector of names are not
+identical
 }
 

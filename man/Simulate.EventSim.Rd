@@ -2,49 +2,38 @@
 % Please edit documentation in R/eventSim.R
 \name{Simulate.EventSim}
 \alias{Simulate.EventSim}
-\title{Perform a time to event simulation 
- 
- A time to event simulation is run for subjects specified by \code{startCounts}
- Each subject is simulated until enough time has passed so that the rate matrices 
- will no longer switch and the subject cannot transition into another state
- 
- All rates which have been defined as formulae must be evaluated before calling this function
- See \code{\link{EvaluateFormula.EventSim}}. If this is not the case then an error message
- will be displayed
- 
- @param object An \code{EventSim} object
- @param startCounts A vector containing nodeNames and number of subjects starting in this node
- For example \code{c("control.progressing",5,"active.progressing",5)}. If a node is not included
- in this list then it is assumed that no subjects start at this location   
- @param seed Random seed (for recruitment)
- @param duration The patient time at which the simulation should end. 
- @return A list containing a data frame ("data") containing  columns id, state,	patient_transition_time which 
- describe which patient transitions into which state at which patient_time and a vector or recruitment times
- (recruitmentTimes)  
- @export}
+\title{Perform a time to event simulation}
 \usage{
 Simulate.EventSim(object, startCounts, seed = NULL, duration = Inf)
 }
+\arguments{
+\item{object}{An \code{EventSim} object}
+
+\item{startCounts}{A vector containing nodeNames and number of
+subjects starting in this node, for example
+\code{c("control.progressing",5,"active.progressing",5)}. If a
+node is not included in this list then it is assumed that no
+subjects start at this location}
+
+\item{seed}{Random seed (for recruitment)}
+
+\item{duration}{The patient time at which the simulation should end.}
+}
+\value{
+A list containing a data frame ("data") containing columns
+id, state, patient_transition_time which describe which patient
+transitions into which state at which patient_time and a vector or
+recruitment times (recruitmentTimes)
+}
 \description{
-Perform a time to event simulation 
+A time to event simulation is run for subjects specified by
+\code{startCounts} Each subject is simulated until enough time has
+passed so that the rate matrices will no longer switch and the
+subject cannot transition into another state
  
- A time to event simulation is run for subjects specified by \code{startCounts}
- Each subject is simulated until enough time has passed so that the rate matrices 
- will no longer switch and the subject cannot transition into another state
- 
- All rates which have been defined as formulae must be evaluated before calling this function
- See \code{\link{EvaluateFormula.EventSim}}. If this is not the case then an error message
- will be displayed
- 
- @param object An \code{EventSim} object
- @param startCounts A vector containing nodeNames and number of subjects starting in this node
- For example \code{c("control.progressing",5,"active.progressing",5)}. If a node is not included
- in this list then it is assumed that no subjects start at this location   
- @param seed Random seed (for recruitment)
- @param duration The patient time at which the simulation should end. 
- @return A list containing a data frame ("data") containing  columns id, state,	patient_transition_time which 
- describe which patient transitions into which state at which patient_time and a vector or recruitment times
- (recruitmentTimes)  
- @export
+All rates which have been defined as formulae must be evaluated
+before calling this function See
+\code{\link{EvaluateFormula.EventSim}}. If this is not the case
+then an error message will be displayed
 }
 
