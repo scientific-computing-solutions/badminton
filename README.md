@@ -1,6 +1,6 @@
 # badminton: time-to event simulation
 
-[![Build Status](https://travis-ci.org/gbm-developers/gbm.svg?branch=master)](https://travis-ci.org/gbm-developers/gbm)
+[![Build Status](https://travis-ci.org/scientific-computing-solutions/badminton.svg?branch=master)](https://travis-ci.org/scientific-computing-solutions/badminton)
 [![Coverage Status](https://coveralls.io/repos/github/scientific-computing-solutions/badminton/badge.svg?branch=master)](https://coveralls.io/github/scientific-computing-solutions/badminton?branch=master)
 
 This package allows users to model continuous-time, discrete-state 
