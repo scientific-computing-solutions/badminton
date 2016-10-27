@@ -1,5 +1,5 @@
 Package: badminton
-Title: Simulation of continuous-time discrete-space Markov chains
+Title: Simulation of Continuous-Time Discrete-Space Markov Chains
 Version: 2.0
 Authors@R: c(
     person("Paul", "Metcalfe", email='paul.metcalfe@gmail.com', role=c("aut", "cre")),
