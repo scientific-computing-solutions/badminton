@@ -1,5 +1,5 @@
 <!--
-%\VignetteEngine{knitr::knitr}
+%\VignetteEngine{knitr::rmarkdown}
 %\VignetteIndexEntry{Tutorial 3 -- Specifying the times at which hazard functions change}
 -->
 

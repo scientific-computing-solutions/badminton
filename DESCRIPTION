@@ -1,6 +1,6 @@
 Package: badminton
 Title: Simulation of Continuous-Time Discrete-Space Markov Chains
-Version: 2.0
+Version: 2.0.1
 Authors@R: c(
     person("Paul", "Metcalfe", email='paul.metcalfe@gmail.com', role=c("aut", "cre")),
     person("Nikolas", "Burkoff", role=c("aut"))
@@ -20,7 +20,8 @@ URL: https://github.com/scientific-computing-solutions/badminton
 LazyData: true
 Suggests:
     knitr,
-    testthat
+    testthat,
+    rmarkdown
 LinkingTo: Rcpp
 Imports:
     Rcpp,
