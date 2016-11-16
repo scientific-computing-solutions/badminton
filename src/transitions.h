@@ -11,8 +11,12 @@ and patient Recruitment Time*/
 class Transitions{
 public:
     /*Constructor, takes arguments directly from the arguments passed from the R code */
-    Transitions(const int n_state, Rcpp::NumericVector rates, Rcpp::NumericVector patientEndTimes,
-                Rcpp::NumericVector calendarEndTimes, Rcpp::NumericMatrix shape, Rcpp::NumericVector resetEdges);
+    Transitions(const int n_state,
+		Rcpp::NumericVector rates,
+		Rcpp::NumericVector patientEndTimes,
+                Rcpp::NumericVector calendarEndTimes,
+		Rcpp::NumericMatrix shape,
+		Rcpp::NumericVector resetEdges);
     
     /*This returns amount of time left until the current rate matrix changes */
     double getNextSwitch(const SubjectTime & sTime );
@@ -35,12 +39,11 @@ public:
     
 private:
     int n_state; //The number of states on the underlying DAG
-    Rcpp::NumericVector rates; // See  gillespie.cpp
+    Rcpp::NumericMatrix shape; // The Weibull shape parameters see gillespie.cpp
     Rcpp::NumericVector patientIndexTimes; //See gillespie.cpp
     Rcpp::NumericVector calendarIndexTimes; // See gillespie.cpp
+    Rcpp::NumericVector rates; // See  gillespie.cpp
     
-    
-    Rcpp::NumericMatrix shape; // The Weibull shape parameters see gillespie.cpp
     std::vector<double> calendarTimes; // The unique values in calendarIndexTimes 
     std::vector<int> calendarSwitches; //which indexes in calendarIndexTimes, represent patient Time = 0
     
@@ -48,7 +51,8 @@ private:
     std::vector<int> resetEdgesTo;
     
     
-    double getNextPatientSwitch(double currentPatientTime, double currentCalendarTime);
+    double getNextPatientSwitch(double currentPatientTime,
+				double currentCalendarTime);
     double getNextCalendarSwitch(double currentCalendarTime);
     int getCalendarStartPos(double currentCalendarTime);
     int getIndex(double currentPatientTime, double currentCalendarTime);
@@ -62,7 +66,9 @@ private:
     *   where U is U[0,1]
     *   
     */
-    double conditionalWeibull_timeToTransition(double rate, double shape, double currentTime);
+    double conditionalWeibull_timeToTransition(double rate,
+					       double shape,
+					       double currentTime);
     
     /* Get the appropriate rate value from the rates vector for current_state -> out_state
     at sTime.get[Patient/Calendar]Time().

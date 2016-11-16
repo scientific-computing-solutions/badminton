@@ -3,13 +3,17 @@
 
 #include"transitions.h"
 
-Transitions::Transitions(const int n_state, Rcpp::NumericVector rates, Rcpp::NumericVector patientEndTimes,
-Rcpp::NumericVector calendarEndTimes, Rcpp::NumericMatrix shape, Rcpp::NumericVector resetEdges):
-n_state(n_state),
-shape(shape),
-patientIndexTimes(patientEndTimes),
-calendarIndexTimes(calendarEndTimes),
-rates(rates)
+Transitions::Transitions(const int n_state,
+			 Rcpp::NumericVector rates,
+			 Rcpp::NumericVector patientEndTimes,
+			 Rcpp::NumericVector calendarEndTimes,
+			 Rcpp::NumericMatrix shape,
+			 Rcpp::NumericVector resetEdges):
+  n_state(n_state),
+  shape(shape),
+  patientIndexTimes(patientEndTimes),
+  calendarIndexTimes(calendarEndTimes),
+  rates(rates)
 {
     if(shape.nrow() != n_state || shape.ncol() != n_state){
         throw std::runtime_error("invalid number of shape parameters");
