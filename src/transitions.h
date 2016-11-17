@@ -1,4 +1,5 @@
 #include<vector>
+#include<set>
 #include<limits>
 #include<Rcpp.h>
 
@@ -14,14 +15,16 @@ private:
   class edge {
   public:
     edge(int from, int to) : from(from), to(to) {};
-    bool operator==(const edge& other) const {
-      return (from==other.from) && (to==other.to);
+
+    bool operator<(const edge& other) const {
+      return (from < other.from) ||
+	( (from == other.from) && (to < other.to));
     }
   private:
     int from, to;
   };
 
-  std::vector<edge> edges;
+  std::set<edge> edges;
 };
 
 /* 

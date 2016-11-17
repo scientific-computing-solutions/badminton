@@ -10,13 +10,12 @@ edge_list::edge_list(const Rcpp::NumericVector& edges_) {
   }
   
   for (int i=0; i!=edges_.length(); i+=2) {
-    edges.push_back(edge(edges_[i], edges_[i + 1]));
+    edges.insert(edge(edges_[i], edges_[i + 1]));
   }
 }
 
 bool edge_list::contains(int from, int to) const {
-  return (edges.end() != std::find(edges.begin(), edges.end(),
-				   edge(from, to)));
+  return edges.find(edge(from, to)) != edges.end();
 }
 
 Transitions::Transitions(const int n_state,
