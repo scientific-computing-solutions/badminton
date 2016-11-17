@@ -50,7 +50,9 @@ public:
     
        
     //expects state numbered 1,2...
-    double getShape(int from_state, int to_state){return shape(from_state-1,to_state-1);}
+    double getShape(int from_state, int to_state){
+      return shape(from_state - 1, to_state - 1);
+    }
     
     //have we crossed an edge with isResetEdge =TRUE?
     bool resetPatientTimeForSwitches(int fromState, int toState);
@@ -68,7 +70,6 @@ private:
     int n_state; //The number of states on the underlying DAG
     Rcpp::NumericMatrix shape; // The Weibull shape parameters see gillespie.cpp
     Rcpp::NumericVector patientIndexTimes; //See gillespie.cpp
-    Rcpp::NumericVector calendarIndexTimes; // See gillespie.cpp
     Rcpp::NumericVector rates; // See  gillespie.cpp
     
     std::vector<double> calendarTimes; // The unique values in calendarIndexTimes 

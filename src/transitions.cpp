@@ -27,7 +27,6 @@ Transitions::Transitions(const int n_state,
   n_state(n_state),
   shape(shape),
   patientIndexTimes(patientEndTimes),
-  calendarIndexTimes(calendarEndTimes),
   rates(rates),
   resetEdges(resetEdges_)
 {
@@ -45,7 +44,9 @@ Transitions::Transitions(const int n_state,
         throw std::runtime_error("incorrect number of rates");  
     }
     
-    //calendarSwitches = which indexes in calendarIndexTimes, represent patient Time = 0 
+    //calendarSwitches = which indexes in calendarEndTimes
+    //                   represent patientTime = 0 
+
     calendarSwitches.push_back(0); 
     for(R_len_t i=0; i + 1 != calendarEndTimes.length(); ++i){
         if(calendarEndTimes[i] != calendarEndTimes[i+1] ){
