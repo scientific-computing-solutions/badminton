@@ -119,27 +119,24 @@ double Transitions::getNextPatientSwitch(double currentPatientTime ,double curre
     
     return INFINITY;
   
-   
-  
 }
 
 
 //time until next switchpoint due to calendar time crossing a boundary
 double Transitions::getNextCalendarSwitch(double currentCalendarTime){
-    for(int i = 0; i < calendarTimes.size()-1; i++){
-        if(currentCalendarTime < calendarTimes[i]){
-            return calendarTimes[i] - currentCalendarTime;
-        }
-    
+  for(std::size_t i = 0; i + 1 < calendarTimes.size(); i++){
+    if(currentCalendarTime < calendarTimes[i]){
+      return calendarTimes[i] - currentCalendarTime;
     }
-    return INFINITY;
+  }
+  return INFINITY;
 }
 
 
 //return the index of the rate matrix for the given currentCalendarTime
 //with patientTime = 0
 int Transitions::getCalendarStartPos(double currentCalendarTime){
-    for(int i = 0; i < calendarTimes.size(); i++){
+  for(std::size_t i = 0; i < calendarTimes.size(); i++){
         if(currentCalendarTime < calendarTimes[i]){
             return calendarSwitches[i]; 
         }
