@@ -4,19 +4,43 @@
 
 #include"subjectTime.h"
 
-/* A class which contains all the rates for the event simulator
-It calculates the amount of time left until the rate functions change,
-and can return the current rate functions given a state, currentPatientTime
-and patient Recruitment Time*/
-class Transitions{
+class edge_list {
 public:
-    /*Constructor, takes arguments directly from the arguments passed from the R code */
+  edge_list(const Rcpp::NumericVector& edges_);
+
+  bool contains(int from, int to) const;
+  
+private:
+  class edge {
+  public:
+    edge(int from, int to) : from(from), to(to) {};
+    bool operator==(const edge& other) const {
+      return (from==other.from) && (to==other.to);
+    }
+  private:
+    int from, to;
+  };
+
+  std::vector<edge> edges;
+};
+
+/* 
+   A class which contains all the rates for the event simulator It
+   calculates the amount of time left until the rate functions change,
+   and can return the current rate functions given a state,
+   currentPatientTime and patient Recruitment Time
+*/
+
+class Transitions{
+  
+public:
+  /*Constructor, takes arguments directly from the arguments passed from the R code */
     Transitions(const int n_state,
 		Rcpp::NumericVector rates,
 		Rcpp::NumericVector patientEndTimes,
                 Rcpp::NumericVector calendarEndTimes,
 		Rcpp::NumericMatrix shape,
-		Rcpp::NumericVector resetEdges);
+		Rcpp::NumericVector resetEdges_);
     
     /*This returns amount of time left until the current rate matrix changes */
     double getNextSwitch(const SubjectTime & sTime );
@@ -47,8 +71,7 @@ private:
     std::vector<double> calendarTimes; // The unique values in calendarIndexTimes 
     std::vector<int> calendarSwitches; //which indexes in calendarIndexTimes, represent patient Time = 0
     
-    std::vector<int> resetEdgesFrom; 
-    std::vector<int> resetEdgesTo;
+    edge_list resetEdges;
     
     
     double getNextPatientSwitch(double currentPatientTime,

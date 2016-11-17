@@ -3,17 +3,34 @@
 
 #include"transitions.h"
 
+edge_list::edge_list(const Rcpp::NumericVector& edges_) {
+
+  if (edges_.length() % 2) {
+    throw std::runtime_error("bad edge length");
+  }
+  
+  for (int i=0; i!=edges_.length(); i+=2) {
+    edges.push_back(edge(edges_[i], edges_[i + 1]));
+  }
+}
+
+bool edge_list::contains(int from, int to) const {
+  return (edges.end() != std::find(edges.begin(), edges.end(),
+				   edge(from, to)));
+}
+
 Transitions::Transitions(const int n_state,
 			 Rcpp::NumericVector rates,
 			 Rcpp::NumericVector patientEndTimes,
 			 Rcpp::NumericVector calendarEndTimes,
 			 Rcpp::NumericMatrix shape,
-			 Rcpp::NumericVector resetEdges):
+			 Rcpp::NumericVector resetEdges_):
   n_state(n_state),
   shape(shape),
   patientIndexTimes(patientEndTimes),
   calendarIndexTimes(calendarEndTimes),
-  rates(rates)
+  rates(rates),
+  resetEdges(resetEdges_)
 {
     if(shape.nrow() != n_state || shape.ncol() != n_state){
         throw std::runtime_error("invalid number of shape parameters");
@@ -27,10 +44,6 @@ Transitions::Transitions(const int n_state,
     
     if(num_rates != rates.size()){
         throw std::runtime_error("incorrect number of rates");  
-    }
-    
-    if(resetEdges.length() % 2 != 0){
-        throw std::runtime_error("incorrect length of resetEdges");
     }
     
     //calendarSwitches = which indexes in calendarIndexTimes, represent patient Time = 0 
@@ -51,18 +64,11 @@ Transitions::Transitions(const int n_state,
     }
     if(calendarTimes.empty()|| calendarTimes.back() != INFINITY)  calendarTimes.push_back(INFINITY);
     
-    for(int i = 0; i < resetEdges.length(); i+=2 ){
-        resetEdgesFrom.push_back(resetEdges[i]);
-        resetEdgesTo.push_back(resetEdges[i+1]);
-    }
 }
 
 
 bool Transitions::resetPatientTimeForSwitches(int fromState, int toState){
-    for(int i = 0; i < resetEdgesFrom.size(); i++) {
-      if(resetEdgesFrom[i] == fromState && resetEdgesTo[i] == toState) return true;
-    }
-    return false;
+  return resetEdges.contains(fromState, toState);
 }
 
 
