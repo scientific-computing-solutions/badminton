@@ -1,25 +1,58 @@
 #include<vector>
+#include<set>
 #include<limits>
 #include<Rcpp.h>
 
 #include"subjectTime.h"
 
-/* A class which contains all the rates for the event simulator
-It calculates the amount of time left until the rate functions change,
-and can return the current rate functions given a state, currentPatientTime
-and patient Recruitment Time*/
-class Transitions{
+class edge_list {
 public:
-    /*Constructor, takes arguments directly from the arguments passed from the R code */
-    Transitions(const int n_state, Rcpp::NumericVector rates, Rcpp::NumericVector patientEndTimes,
-                Rcpp::NumericVector calendarEndTimes, Rcpp::NumericMatrix shape, Rcpp::NumericVector resetEdges);
+  edge_list(const Rcpp::NumericVector& edges_);
+
+  bool contains(int from, int to) const;
+  
+private:
+  class edge {
+  public:
+    edge(int from, int to) : from(from), to(to) {};
+
+    bool operator<(const edge& other) const {
+      return (from < other.from) ||
+	( (from == other.from) && (to < other.to));
+    }
+  private:
+    int from, to;
+  };
+
+  std::set<edge> edges;
+};
+
+/* 
+   A class which contains all the rates for the event simulator It
+   calculates the amount of time left until the rate functions change,
+   and can return the current rate functions given a state,
+   currentPatientTime and patient Recruitment Time
+*/
+
+class Transitions{
+  
+public:
+  /*Constructor, takes arguments directly from the arguments passed from the R code */
+    Transitions(const int n_state,
+		Rcpp::NumericVector rates,
+		Rcpp::NumericVector patientEndTimes,
+                Rcpp::NumericVector calendarEndTimes,
+		Rcpp::NumericMatrix shape,
+		Rcpp::NumericVector resetEdges_);
     
     /*This returns amount of time left until the current rate matrix changes */
     double getNextSwitch(const SubjectTime & sTime );
     
        
     //expects state numbered 1,2...
-    double getShape(int from_state, int to_state){return shape(from_state-1,to_state-1);}
+    double getShape(int from_state, int to_state){
+      return shape(from_state - 1, to_state - 1);
+    }
     
     //have we crossed an edge with isResetEdge =TRUE?
     bool resetPatientTimeForSwitches(int fromState, int toState);
@@ -35,20 +68,18 @@ public:
     
 private:
     int n_state; //The number of states on the underlying DAG
-    Rcpp::NumericVector rates; // See  gillespie.cpp
-    Rcpp::NumericVector patientIndexTimes; //See gillespie.cpp
-    Rcpp::NumericVector calendarIndexTimes; // See gillespie.cpp
-    
-    
     Rcpp::NumericMatrix shape; // The Weibull shape parameters see gillespie.cpp
+    Rcpp::NumericVector patientIndexTimes; //See gillespie.cpp
+    Rcpp::NumericVector rates; // See  gillespie.cpp
+    
     std::vector<double> calendarTimes; // The unique values in calendarIndexTimes 
     std::vector<int> calendarSwitches; //which indexes in calendarIndexTimes, represent patient Time = 0
     
-    std::vector<int> resetEdgesFrom; 
-    std::vector<int> resetEdgesTo;
+    edge_list resetEdges;
     
     
-    double getNextPatientSwitch(double currentPatientTime, double currentCalendarTime);
+    double getNextPatientSwitch(double currentPatientTime,
+				double currentCalendarTime);
     double getNextCalendarSwitch(double currentCalendarTime);
     int getCalendarStartPos(double currentCalendarTime);
     int getIndex(double currentPatientTime, double currentCalendarTime);
@@ -62,7 +93,9 @@ private:
     *   where U is U[0,1]
     *   
     */
-    double conditionalWeibull_timeToTransition(double rate, double shape, double currentTime);
+    double conditionalWeibull_timeToTransition(double rate,
+					       double shape,
+					       double currentTime);
     
     /* Get the appropriate rate value from the rates vector for current_state -> out_state
     at sTime.get[Patient/Calendar]Time().
